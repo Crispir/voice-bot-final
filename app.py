@@ -3,8 +3,9 @@ import requests
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
 
+# ⚠️ Временный fallback — замени xxx на свой токен
+HF_TOKEN = os.environ.get("HF_TOKEN") or "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"
 BOT_TOKEN = os.environ["BOT_TOKEN"]
-HF_TOKEN = os.environ["HF_TOKEN"]
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("✅ Привет! Отправь голосовое сообщение — я распознаю речь.")
