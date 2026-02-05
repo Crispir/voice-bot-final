@@ -3,48 +3,38 @@ import requests
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
 
-# ⚠️ Временный fallback — замени xxx на свой токен
+# 🟢 Используем новый токен напрямую (временно)
+BOT_TOKEN = "8260383113:AAGdldTXdKgeYpMwRk6YgrAIvu2B9gd6nu0"  # ← замени на новый!
 HF_TOKEN = os.environ.get("HF_TOKEN") or "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"
-BOT_TOKEN = os.environ["BOT_TOKEN"]
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("✅ Привет! Отправь голосовое сообщение — я распознаю речь.")
+    await update.message.reply_text("✅ Готов к голосу.")
 
 async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        # Скачиваем голосовое сообщение от Telegram
-        voice_file = await update.message.voice.get_file()
-        voice_bytes = await voice_file.download_as_bytearray()
+        voice = await update.message.voice.get_file()
+        voice_bytes = await voice.download_as_bytearray()
 
-        # Отправляем в faster-whisper-small (стабильная модель)
-        headers = {
-            "Authorization": f"Bearer {HF_TOKEN}",
-            "Content-Type": "audio/ogg"
-        }
+        headers = {"Authorization": f"Bearer {HF_TOKEN}"}
         response = requests.post(
             "https://api-inference.huggingface.co/models/systran/faster-whisper-small",
             headers=headers,
             data=voice_bytes
         )
+        print("STT:", response.status_code)
 
-        # Логируем статус (для отладки в Railway Logs)
-        print("STT Status:", response.status_code)
-
-        # Обрабатываем ответ
-        result = response.json()
-        if isinstance(result, list) and len(result) > 0:
-            # faster-whisper возвращает список сегментов
-            text = " ".join(seg.get("text", "") for seg in result).strip()
+        try:
+            result = response.json()
+            text = " ".join(seg.get("text", "") for seg in result).strip() if isinstance(result, list) else ""
             if text:
-                await update.message.reply_text(f"🎤 Распознано:\n«{text}»")
-                return
-
-        await update.message.reply_text("Не удалось распознать речь. Попробуйте говорить чётче.")
+                await update.message.reply_text(f"🎤 {text}")
+            else:
+                await update.message.reply_text("Говорите чётче.")
+        except Exception as e:
+            await update.message.reply_text(f"STT error: {e}")
 
     except Exception as e:
-        error_name = type(e).__name__
-        await update.message.reply_text(f"Ошибка: {error_name}")
-        print("Full error:", e)
+        await update.message.reply_text(f"Error: {e}")
 
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
